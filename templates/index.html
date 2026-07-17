@@ -1514,10 +1514,11 @@
 
         async function loadDashboardSummary() {
             // Fetch dashboard stats/details concurrently to drastically speed up loading times
-            const [data, ledger, dashboard] = await Promise.all([
+            const [data, ledger, dashboard, gradebook] = await Promise.all([
                 fetchAPI('/api/attendance'),
                 fetchAPI('/api/ledger'),
-                fetchAPI('/api/dashboard')
+                fetchAPI('/api/dashboard'),
+                fetchAPI('/api/gradebook')
             ]);
             
             if(data && Array.isArray(data)) {

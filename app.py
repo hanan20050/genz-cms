@@ -400,33 +400,37 @@ STATS_HTML = """
                     </div>
 
                     <!-- Grades Table (Gradebook) -->
-                    <div>
-                        <h4 style="color: #00e5ff; margin: 0 0 12px; font-size: 16px;"><i class="fa-solid fa-graduation-cap"></i> Subject-wise Grades (Gradebook)</h4>
-                        {% if student_grades[username] %}
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
-                                    <th style="padding: 8px; text-align: left; color: #ffeb3b;">Code</th>
-                                    <th style="padding: 8px; text-align: left; color: #ffeb3b;">Course Name</th>
-                                    <th style="padding: 8px; text-align: center; color: #ffeb3b;">Credit Hours</th>
-                                    <th style="padding: 8px; text-align: center; color: #ffeb3b;">Grade</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for g in student_grades[username] %}
-                                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
-                                    <td style="padding: 8px; font-family: monospace;">{{ g.course_code }}</td>
-                                    <td style="padding: 8px;">{{ g.course_name }}</td>
-                                    <td style="padding: 8px; text-align: center;">{{ g.credit_hour }}</td>
-                                    <td style="padding: 8px; text-align: center; font-weight: 700; color: #ff2e93;">{{ g.grade }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <p style="color: #9ba3af; font-size: 13px; font-style: italic;">No gradebook records found yet. Ask student to check gradebook to save them.</p>
-                        {% endif %}
-                    </div>
+                    <details style="cursor: pointer; margin-top: 10px;">
+                        <summary style="color: #00e5ff; font-weight: 600; font-size: 16px; outline: none; user-select: none;">
+                            <i class="fa-solid fa-graduation-cap"></i> View Subject-wise Grades (Gradebook)
+                        </summary>
+                        <div style="margin-top: 15px; cursor: default;">
+                            {% if student_grades[username] %}
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
+                                        <th style="padding: 8px; text-align: left; color: #ffeb3b;">Code</th>
+                                        <th style="padding: 8px; text-align: left; color: #ffeb3b;">Course Name</th>
+                                        <th style="padding: 8px; text-align: center; color: #ffeb3b;">Credit Hours</th>
+                                        <th style="padding: 8px; text-align: center; color: #ffeb3b;">Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for g in student_grades[username] %}
+                                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                        <td style="padding: 8px; font-family: monospace;">{{ g.course_code }}</td>
+                                        <td style="padding: 8px;">{{ g.course_name }}</td>
+                                        <td style="padding: 8px; text-align: center;">{{ g.credit_hour }}</td>
+                                        <td style="padding: 8px; text-align: center; font-weight: 700; color: #ff2e93;">{{ g.grade }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p style="color: #9ba3af; font-size: 13px; font-style: italic;">No gradebook records found yet. Grades will automatically load from portal when student logs in.</p>
+                            {% endif %}
+                        </div>
+                    </details>
                 </div>
                 {% else %}
                 <p style="color: #9ba3af; text-align: center;">No student data saved on disk yet.</p>
