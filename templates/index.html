@@ -708,6 +708,39 @@
             color: var(--danger);
             border: 1px solid rgba(255, 0, 60, 0.3);
         }
+        .meme-box {
+            margin-top: 24px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: left;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .meme-box:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .meme-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: var(--primary-light);
+            margin-bottom: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .meme-text {
+            line-height: 1.4;
+            font-style: italic;
+            transition: opacity 0.2s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -738,6 +771,17 @@
         </div>
         
         <button class="btn-submit" onclick="performLogin()">Login</button>
+
+        <!-- Meme Section -->
+        <div class="meme-box" onclick="rotateMeme()">
+            <div class="meme-header">
+                <span>💡 BNU CMS Thought of the Day</span>
+                <span style="font-size: 10px; opacity: 0.7;">Click for next <i class="fa-solid fa-arrows-rotate"></i></span>
+            </div>
+            <div class="meme-text" id="memeText">
+                Loading a funny meme...
+            </div>
+        </div>
     </div>
 
     <!-- Dashboard Area -->
@@ -2256,7 +2300,38 @@
             document.getElementById('dashboardScreen').style.display = 'none';
         }
 
+        const memes = [
+            "CMS: *exists* <br>Students: Please let me check my attendance <br>CMS: Internal Server Error 500",
+            "When you check your gradebook and see your GPA is in single digits.",
+            "Me trying to calculate if 74.5% attendance rounds up to 75% so I can sit in exams.",
+            "Professor: 'I have uploaded the grades on CMS.' <br>CMS: *crashes for 3 business days*",
+            "Me logging into CMS at 11:59 PM to submit an assignment due at 11:59 PM.",
+            "CMS password requirement: Must contain at least one capital letter, one number, one special character, and the tears of a student.",
+            "That moment when you enter the wrong password twice and CMS locks you out like you tried to hack the Pentagon.",
+            "Waiting for CMS to load during course registration is a great way to practice patience, meditation, and anger management.",
+            "My attendance in 8:30 AM classes: 📉 <br>My hope of passing: 📈 (pure delusion)"
+        ];
+
+        let currentMemeIndex = -1;
+        function rotateMeme() {
+            let nextIndex;
+            do {
+                nextIndex = Math.floor(Math.random() * memes.length);
+            } while (nextIndex === currentMemeIndex && memes.length > 1);
+            
+            currentMemeIndex = nextIndex;
+            const textEl = document.getElementById('memeText');
+            if (textEl) {
+                textEl.style.opacity = 0;
+                setTimeout(() => {
+                    textEl.innerHTML = memes[currentMemeIndex];
+                    textEl.style.opacity = 1;
+                }, 200);
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
+            rotateMeme();
             const remember = localStorage.getItem('bnu_remember_me') === 'true';
             if (remember) {
                 document.getElementById('rememberMe').checked = true;
