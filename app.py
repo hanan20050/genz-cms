@@ -56,6 +56,20 @@ def get_saved_students():
                 students[username].append(datatype)
     return students
 
+def get_saved_grades():
+    grades = {}
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith("_gradebook.json"):
+                username = filename.replace("_gradebook.json", "")
+                filepath = os.path.join(DATA_DIR, filename)
+                try:
+                    with open(filepath, "r") as f:
+                        grades[username] = json.load(f)
+                except Exception:
+                    pass
+    return grades
+
 @app.before_request
 def start_timer():
     request.start_time = time.time()
@@ -370,21 +384,52 @@ STATS_HTML = """
         </div>
         
         <div class="table-card" style="margin-top: 40px; border-color: #00ff66;">
-            <h2>Saved Student Data on Disk</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <h2>Saved Student Academic Records & Grades</h2>
+            <div style="display: flex; flex-direction: column; gap: 24px;">
                 {% for username, datatypes in saved_students.items() %}
-                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 15px;">
-                    <h3 style="margin: 0 0 10px; color: #ffeb3b; font-size: 16px;"><i class="fa-solid fa-user-graduate"></i> {{ username }}</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        {% for dt in datatypes %}
-                        <a href="/stats/student-data/{{ username }}/{{ dt }}" target="_blank" class="status-badge success" style="text-decoration: none; text-transform: uppercase;">
-                            {{ dt }}
-                        </a>
-                        {% endfor %}
+                <div style="background: rgba(255, 255, 255, 0.02); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="margin: 0; color: #ffeb3b; font-size: 20px;"><i class="fa-solid fa-user-graduate"></i> Student: {{ username }}</h3>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            {% for dt in datatypes %}
+                            <a href="/stats/student-data/{{ username }}/{{ dt }}" target="_blank" class="status-badge success" style="text-decoration: none; text-transform: uppercase; font-size: 11px;">
+                                {{ dt }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Grades Table (Gradebook) -->
+                    <div>
+                        <h4 style="color: #00e5ff; margin: 0 0 12px; font-size: 16px;"><i class="fa-solid fa-graduation-cap"></i> Subject-wise Grades (Gradebook)</h4>
+                        {% if student_grades[username] %}
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
+                                    <th style="padding: 8px; text-align: left; color: #ffeb3b;">Code</th>
+                                    <th style="padding: 8px; text-align: left; color: #ffeb3b;">Course Name</th>
+                                    <th style="padding: 8px; text-align: center; color: #ffeb3b;">Credit Hours</th>
+                                    <th style="padding: 8px; text-align: center; color: #ffeb3b;">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for g in student_grades[username] %}
+                                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                                    <td style="padding: 8px; font-family: monospace;">{{ g.course_code }}</td>
+                                    <td style="padding: 8px;">{{ g.course_name }}</td>
+                                    <td style="padding: 8px; text-align: center;">{{ g.credit_hour }}</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: 700; color: #ff2e93;">{{ g.grade }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p style="color: #9ba3af; font-size: 13px; font-style: italic;">No gradebook records found yet. Ask student to check gradebook to save them.</p>
+                        {% endif %}
                     </div>
                 </div>
                 {% else %}
-                <p style="color: #9ba3af; grid-column: 1 / -1; text-align: center;">No student data saved on disk yet.</p>
+                <p style="color: #9ba3af; text-align: center;">No student data saved on disk yet.</p>
                 {% endfor %}
             </div>
         </div>
@@ -434,7 +479,8 @@ def stats_page():
                                  stats=STATS, 
                                  avg_fetch_time=avg_fetch_time, 
                                  history=list(reversed(enhanced_history)),
-                                 saved_students=get_saved_students())
+                                 saved_students=get_saved_students(),
+                                 student_grades=get_saved_grades())
 
 @app.route("/stats/student-data/<username>/<datatype>")
 def view_student_file(username, datatype):
