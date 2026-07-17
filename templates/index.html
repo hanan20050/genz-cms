@@ -658,6 +658,21 @@
             .welcome-card {
                 padding: 20px;
             }
+            #sec-dashboard {
+                display: flex !important;
+                flex-direction: column;
+            }
+            .dashboard-meme {
+                order: -1;
+                margin-bottom: 15px !important;
+            }
+            .welcome-card {
+                order: 0;
+                margin-bottom: 15px !important;
+            }
+            .stats-grid {
+                order: 1;
+            }
         }
         
         /* Extra Gen Z Cyberpunk Glowing Elements */
@@ -844,7 +859,7 @@
                     </div>
 
                     <!-- Dashboard Text Meme -->
-                    <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 15px; margin-bottom: 20px; font-family: monospace; font-size: 13px; color: #fca5a5; line-height: 1.6;">
+                    <div class="dashboard-meme" style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 15px; margin-bottom: 20px; font-family: monospace; font-size: 13px; color: #fca5a5; line-height: 1.6;">
                         <strong>[ 📶 SYSTEM PRIORITY REPORT ]</strong><br>
                         BNU Campus Wi-Fi Speed: 🐌 0.01 kbps (Connection Lost)<br>
                         BNU Fee Challan Gateway: 🚀 1,000 Mbps (Instant Bank Account Evaporation)<br>
@@ -1478,9 +1493,12 @@
         }
 
         async function loadDashboardSummary() {
-            const data = await fetchAPI('/api/attendance');
-            const ledger = await fetchAPI('/api/ledger');
-            const dashboard = await fetchAPI('/api/dashboard');
+            // Fetch dashboard stats/details concurrently to drastically speed up loading times
+            const [data, ledger, dashboard] = await Promise.all([
+                fetchAPI('/api/attendance'),
+                fetchAPI('/api/ledger'),
+                fetchAPI('/api/dashboard')
+            ]);
             
             if(data && Array.isArray(data)) {
                 document.getElementById('statEnrolled').innerText = data.length + " Courses 📚";
