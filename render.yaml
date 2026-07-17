@@ -14,5 +14,5 @@ services:
         value: Hanan@1123
     disk:
       name: student-data
-      mountPath: /opt/render/project/src/student_data
+      mountPath: /var/data
       sizeGB: 1

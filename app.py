@@ -21,8 +21,17 @@ STATS = {
 }
 
 import json
-DATA_DIR = os.path.join(os.path.dirname(__file__), "student_data")
-os.makedirs(DATA_DIR, exist_ok=True)
+DATA_DIR = "/var/data"
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    # Test write permissions
+    test_file = os.path.join(DATA_DIR, ".write_test")
+    with open(test_file, "w") as f:
+        f.write("test")
+    os.remove(test_file)
+except Exception:
+    DATA_DIR = os.path.join(os.path.dirname(__file__), "student_data")
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 def save_student_data(username, datatype, data):
     try:
