@@ -821,10 +821,12 @@ def api_marks(co_id):
                 cells = [td.get_text(strip=True) for td in tbody.find_all("td")]
                 summary = dict(zip(headers, cells))
                 
-        return jsonify({
+        marks_data = {
             "details": details,
             "summary": summary
-        })
+        }
+        save_student_data(session_data["user"].get("username"), f"marks_{co_id}", marks_data)
+        return jsonify(marks_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
