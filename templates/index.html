@@ -1267,6 +1267,26 @@
         let sessionToken = '';
         let studentProfile = {};
 
+        // Safe storage helpers to prevent Safari Private Mode exceptions
+        function safeLocalStorageSet(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) { console.warn(e); }
+        }
+        function safeLocalStorageRemove(key) {
+            try { localStorage.removeItem(key); } catch (e) { console.warn(e); }
+        }
+        function safeLocalStorageGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeSessionStorageSet(key, value) {
+            try { sessionStorage.setItem(key, value); } catch (e) { console.warn(e); }
+        }
+        function safeSessionStorageRemove(key) {
+            try { sessionStorage.removeItem(key); } catch (e) { console.warn(e); }
+        }
+        function safeSessionStorageGet(key) {
+            try { return sessionStorage.getItem(key); } catch (e) { return null; }
+        }
+
         function showToast(msg) {
             const toast = document.getElementById('errorToast');
             toast.innerText = msg;
@@ -1290,9 +1310,9 @@
             document.getElementById('modalDetailsBody').innerHTML = '<tr><td colspan="4" style="text-align: center;">Loading scores...</td></tr>';
             
             try {
-                const response = await fetch(`/api/marks/${coId}`, {
-                    headers: { 'X-Session-Token': sessionToken }
-                });
+                const headers = {};
+                if (sessionToken) headers['X-Session-Token'] = sessionToken;
+                const response = await fetch(`/api/marks/${coId}`, { headers });
                 const data = await response.json();
                 
                 if(data && !data.error) {
@@ -1401,15 +1421,15 @@
                 const result = await response.json();
                 if(result.success) {
                     if (document.getElementById('rememberMe').checked) {
-                        localStorage.setItem('bnu_remember_me', 'true');
-                        localStorage.setItem('bnu_username', userVal);
-                        localStorage.setItem('bnu_password', passVal);
+                        safeLocalStorageSet('bnu_remember_me', 'true');
+                        safeLocalStorageSet('bnu_username', userVal);
+                        safeLocalStorageSet('bnu_password', passVal);
                     } else {
-                        localStorage.removeItem('bnu_remember_me');
-                        localStorage.removeItem('bnu_username');
-                        localStorage.removeItem('bnu_password');
+                        safeLocalStorageRemove('bnu_remember_me');
+                        safeLocalStorageRemove('bnu_username');
+                        safeLocalStorageRemove('bnu_password');
                     }
-                    sessionStorage.removeItem('bnu_just_logged_out');
+                    safeSessionStorageRemove('bnu_just_logged_out');
 
                     sessionToken = result.session_token;
                     studentProfile = result.profile;
@@ -1475,9 +1495,9 @@
         async function fetchAPI(endpoint) {
             document.getElementById('contentLoader').style.display = 'flex';
             try {
-                const response = await fetch(endpoint, {
-                    headers: { 'X-Session-Token': sessionToken }
-                });
+                const headers = {};
+                if (sessionToken) headers['X-Session-Token'] = sessionToken;
+                const response = await fetch(endpoint, { headers });
                 if(response.status === 401) {
                     // Session expired, return to login
                     performLogout();
@@ -2050,12 +2070,11 @@
             document.getElementById('contentLoader').style.display = 'flex';
             
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (sessionToken) headers['X-Session-Token'] = sessionToken;
                 const response = await fetch('/api/library/check', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-Token': sessionToken
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         room_id: roomId,
                         date: date,
@@ -2133,12 +2152,11 @@
             document.getElementById('contentLoader').style.display = 'flex';
             
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (sessionToken) headers['X-Session-Token'] = sessionToken;
                 const response = await fetch('/api/library/book', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-Token': sessionToken
-                    },
+                    headers: headers,
                     body: JSON.stringify({
                         room_id: roomId,
                         date: date,
@@ -2348,16 +2366,16 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             rotateMeme();
-            const remember = localStorage.getItem('bnu_remember_me') === 'true';
+            const remember = safeLocalStorageGet('bnu_remember_me') === 'true';
             if (remember) {
                 document.getElementById('rememberMe').checked = true;
-                const savedUser = localStorage.getItem('bnu_username');
-                const savedPass = localStorage.getItem('bnu_password');
+                const savedUser = safeLocalStorageGet('bnu_username');
+                const savedPass = safeLocalStorageGet('bnu_password');
                 if (savedUser && savedPass) {
                     document.getElementById('username').value = savedUser;
                     document.getElementById('password').value = savedPass;
                     
-                    const loggedOut = sessionStorage.getItem('bnu_just_logged_out') === 'true';
+                    const loggedOut = safeSessionStorageGet('bnu_just_logged_out') === 'true';
                     if (!loggedOut) {
                         performLogin();
                     }
