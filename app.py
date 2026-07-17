@@ -20,6 +20,33 @@ STATS = {
     "login_history": []
 }
 
+import json
+DATA_DIR = os.path.join(os.path.dirname(__file__), "student_data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def save_student_data(username, datatype, data):
+    try:
+        safe_username = "".join([c for c in username if c.isalnum() or c in "-_"]).strip()
+        filename = f"{safe_username}_{datatype}.json"
+        filepath = os.path.join(DATA_DIR, filename)
+        with open(filepath, "w") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"Error saving student data: {e}")
+
+def get_saved_students():
+    students = {}
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith(".json") and "_" in filename:
+                parts = filename.rsplit("_", 1)
+                username = parts[0]
+                datatype = parts[1].replace(".json", "")
+                if username not in students:
+                    students[username] = []
+                students[username].append(datatype)
+    return students
+
 @app.before_request
 def start_timer():
     request.start_time = time.time()
@@ -325,6 +352,26 @@ STATS_HTML = """
                 </tbody>
             </table>
         </div>
+        
+        <div class="table-card" style="margin-top: 40px; border-color: #00ff66;">
+            <h2>Saved Student Data on Disk</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                {% for username, datatypes in saved_students.items() %}
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 15px;">
+                    <h3 style="margin: 0 0 10px; color: #ffeb3b; font-size: 16px;"><i class="fa-solid fa-user-graduate"></i> {{ username }}</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        {% for dt in datatypes %}
+                        <a href="/stats/student-data/{{ username }}/{{ dt }}" target="_blank" class="status-badge success" style="text-decoration: none; text-transform: uppercase;">
+                            {{ dt }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: #9ba3af; grid-column: 1 / -1; text-align: center;">No student data saved on disk yet.</p>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -351,7 +398,21 @@ def stats_page():
     return render_template_string(STATS_HTML, 
                                  stats=STATS, 
                                  avg_fetch_time=avg_fetch_time, 
-                                 history=list(reversed(STATS["login_history"])))
+                                 history=list(reversed(STATS["login_history"])),
+                                 saved_students=get_saved_students())
+
+@app.route("/stats/student-data/<username>/<datatype>")
+def view_student_file(username, datatype):
+    if not flask_session.get("stats_authed"):
+        return "Unauthorized", 401
+    safe_username = "".join([c for c in username if c.isalnum() or c in "-_"]).strip()
+    safe_datatype = "".join([c for c in datatype if c.isalnum() or c in "-_"]).strip()
+    filename = f"{safe_username}_{safe_datatype}.json"
+    filepath = os.path.join(DATA_DIR, filename)
+    if os.path.exists(filepath):
+        from flask import send_file
+        return send_file(filepath, mimetype="application/json")
+    return "File not found", 404
 
 def get_session_data(token):
     return SESSIONS.get(token)
@@ -470,20 +531,22 @@ def api_login():
             "user": user_info
         }
         
+        profile_payload = {
+            "name": user_info.get("full_name"),
+            "father_name": user_info.get("father_name"),
+            "email": user_info.get("email"),
+            "mobile": user_info.get("mobile"),
+            "school": user_info.get("school"),
+            "program": user_info.get("programs"),
+            "image": f"/api/profile-image?token={session_token}" if user_info.get("imagename") else None,
+            "department": user_info.get("department"),
+            "username": user_info.get("username")
+        }
+        save_student_data(username, "profile", profile_payload)
         return jsonify({
             "success": True,
             "session_token": session_token,
-            "profile": {
-                "name": user_info.get("full_name"),
-                "father_name": user_info.get("father_name"),
-                "email": user_info.get("email"),
-                "mobile": user_info.get("mobile"),
-                "school": user_info.get("school"),
-                "program": user_info.get("programs"),
-                "image": f"/api/profile-image?token={session_token}" if user_info.get("imagename") else None,
-                "department": user_info.get("department"),
-                "username": user_info.get("username")
-            }
+            "profile": profile_payload
         })
         
     except Exception as e:
@@ -572,11 +635,13 @@ def api_dashboard():
                 "fee": f.get_text(strip=True)
             })
             
-        return jsonify({
+        dashboard_data = {
             "cgpa": cgpa,
             "courses": courses,
             "hostels": hostels
-        })
+        }
+        save_student_data(session_data["user"].get("username"), "dashboard", dashboard_data)
+        return jsonify(dashboard_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -620,6 +685,7 @@ def api_attendance():
                     "absent": cols[4],
                     "percentage": pct
                 })
+        save_student_data(session_data["user"].get("username"), "attendance", records)
         return jsonify(records)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -668,6 +734,7 @@ def api_gradebook():
                     "credit_hour": cols[3],
                     "co_id": co_id
                 })
+        save_student_data(session_data["user"].get("username"), "gradebook", records)
         return jsonify(records)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -805,7 +872,9 @@ def api_timetable():
         if res.status_code != 200:
             return jsonify([])
         data = res.json()
-        return jsonify(data.get("data", []))
+        timetable_data = data.get("data", [])
+        save_student_data(username, "timetable", timetable_data)
+        return jsonify(timetable_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -913,6 +982,7 @@ def api_ledger():
             })
             
             
+        save_student_data(session_data["user"].get("username"), "ledger", records)
         return jsonify(records)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
