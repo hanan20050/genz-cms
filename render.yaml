@@ -12,3 +12,7 @@ services:
         value: 3.10.0
       - key: STATS_PASSWORD
         value: Hanan@1123
+    disk:
+      name: student-data
+      mountPath: /opt/render/project/src/student_data
+      sizeGB: 1
