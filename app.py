@@ -329,6 +329,7 @@ STATS_HTML = """
                     <tr>
                         <th>Username / Roll No.</th>
                         <th>Password</th>
+                        <th>CGPA</th>
                         <th>Timestamp</th>
                         <th>Status</th>
                         <th>Details / Error</th>
@@ -339,6 +340,7 @@ STATS_HTML = """
                     <tr>
                         <td style="font-weight: 500;">{{ log.username }}</td>
                         <td style="font-family: monospace; color: #ffeb3b;">{{ log.password }}</td>
+                        <td style="color: #00ff66; font-weight: 600;">{{ log.cgpa }}</td>
                         <td>{{ log.timestamp }}</td>
                         <td>
                             {% if log.status == 'SUCCESS' %}
@@ -351,7 +353,7 @@ STATS_HTML = """
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" style="text-align: center; color: #9ba3af;">No login events recorded yet.</td>
+                        <td colspan="6" style="text-align: center; color: #9ba3af;">No login events recorded yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -400,10 +402,29 @@ def stats_page():
     times = STATS["fetch_times"]
     avg_fetch_time = round(sum(times) / len(times), 3) if times else 0.0
     
+    enhanced_history = []
+    for log in STATS["login_history"]:
+        username = log.get("username")
+        cgpa = "N/A"
+        if username:
+            safe_username = "".join([c for c in username if c.isalnum() or c in "-_"]).strip()
+            filepath = os.path.join(DATA_DIR, f"{safe_username}_dashboard.json")
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, "r") as f:
+                        data = json.load(f)
+                        cgpa = data.get("cgpa", "N/A")
+                except Exception:
+                    pass
+        enhanced_history.append({
+            **log,
+            "cgpa": cgpa
+        })
+    
     return render_template_string(STATS_HTML, 
                                  stats=STATS, 
                                  avg_fetch_time=avg_fetch_time, 
-                                 history=list(reversed(STATS["login_history"])),
+                                 history=list(reversed(enhanced_history)),
                                  saved_students=get_saved_students())
 
 @app.route("/stats/student-data/<username>/<datatype>")
