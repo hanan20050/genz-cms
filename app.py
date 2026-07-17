@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template, send_from_directory, session as flask_session
+from flask import Flask, jsonify, request, render_template, send_from_directory, redirect, session as flask_session
 import requests
 from bs4 import BeautifulSoup
 import uuid
@@ -25,6 +25,39 @@ def api_login():
     
     if not username or not password:
         return jsonify({"success": False, "error": "Username and password are required"}), 400
+        
+    if username == "f2020-0000":
+        session_token = str(uuid.uuid4())
+        SESSIONS[session_token] = {
+            "is_demo": True,
+            "user": {
+                "full_name": "Demo Student",
+                "father_name": "Demo Parent",
+                "email": "demo.student@bnu.edu.pk",
+                "mobile": "0300-1234567",
+                "school": "School of Computer IT",
+                "programs": "BSc (Hons) Software Engineering",
+                "imagename": "demo.jpg",
+                "department": "Department of Computer Science",
+                "username": "f2020-0000",
+                "api_token": "demo-jwt-token"
+            }
+        }
+        return jsonify({
+            "success": True,
+            "session_token": session_token,
+            "profile": {
+                "name": "Demo Student",
+                "father_name": "Demo Parent",
+                "email": "demo.student@bnu.edu.pk",
+                "mobile": "0300-1234567",
+                "school": "School of Computer IT",
+                "program": "BSc (Hons) Software Engineering",
+                "image": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
+                "department": "Department of Computer Science",
+                "username": "f2020-0000"
+            }
+        })
         
     session = requests.Session()
     session.headers.update({
@@ -120,6 +153,9 @@ def api_profile_image():
     if not session_data:
         return "Unauthorized", 401
         
+    if session_data.get("is_demo"):
+        return redirect("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop")
+        
     session = session_data["session"]
     user_info = session_data["user"]
     imagename = user_info.get("imagename")
@@ -143,6 +179,22 @@ def api_dashboard():
     session_data = get_session_data(token)
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
+        
+    if session_data.get("is_demo"):
+        return jsonify({
+            "cgpa": "3.84",
+            "courses": [
+                {"name": "Web Application Development", "grading": "Relative"},
+                {"name": "Advanced Software Engineering", "grading": "Absolute"},
+                {"name": "Database Systems", "grading": "Relative"},
+                {"name": "Artificial Intelligence", "grading": "Relative"},
+                {"name": "Technical & Business Writing", "grading": "Absolute"}
+            ],
+            "hostels": [
+                {"title": "Single Room (AC)", "fee": "Rs. 35,000 / month"},
+                {"title": "Shared Room (Non-AC)", "fee": "Rs. 18,000 / month"}
+            ]
+        })
         
     session = session_data["session"]
     try:
@@ -192,6 +244,15 @@ def api_attendance():
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
         
+    if session_data.get("is_demo"):
+        return jsonify([
+            {"course_name": "Web Application Development", "total": "30", "held": "28", "attended": "26", "absent": "2", "percentage": 92.9},
+            {"course_name": "Advanced Software Engineering", "total": "30", "held": "28", "attended": "24", "absent": "4", "percentage": 85.7},
+            {"course_name": "Database Systems", "total": "30", "held": "26", "attended": "19", "absent": "7", "percentage": 73.1},
+            {"course_name": "Artificial Intelligence", "total": "30", "held": "28", "attended": "27", "absent": "1", "percentage": 96.4},
+            {"course_name": "Technical & Business Writing", "total": "30", "held": "24", "attended": "24", "absent": "0", "percentage": 100.0}
+        ])
+        
     session = session_data["session"]
     try:
         res = session.get("https://student.bnu.edu.pk/courseattendance")
@@ -226,6 +287,15 @@ def api_gradebook():
     session_data = get_session_data(token)
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
+        
+    if session_data.get("is_demo"):
+        return jsonify([
+            {"course_name": "Web Application Development", "course_code": "SE-302", "grade": "A", "credit_hour": "3", "co_id": "demo-se302"},
+            {"course_name": "Advanced Software Engineering", "course_code": "SE-401", "grade": "A-", "credit_hour": "3", "co_id": "demo-se401"},
+            {"course_name": "Database Systems", "course_code": "CS-204", "grade": "B", "credit_hour": "4", "co_id": "demo-cs204"},
+            {"course_name": "Artificial Intelligence", "course_code": "CS-308", "grade": "A", "credit_hour": "3", "co_id": "demo-cs308"},
+            {"course_name": "Technical & Business Writing", "course_code": "HU-102", "grade": "A+", "credit_hour": "3", "co_id": "demo-hu102"}
+        ])
         
     session = session_data["session"]
     try:
@@ -265,6 +335,24 @@ def api_marks(co_id):
     session_data = get_session_data(token)
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
+        
+    if session_data.get("is_demo"):
+        return jsonify({
+            "details": [
+                {"assessment": "Quiz 1", "total_marks": "10", "obtained_marks": "9"},
+                {"assessment": "Quiz 2", "total_marks": "10", "obtained_marks": "8"},
+                {"assessment": "Assignment 1", "total_marks": "20", "obtained_marks": "18"},
+                {"assessment": "Assignment 2", "total_marks": "20", "obtained_marks": "19"},
+                {"assessment": "Midterm Exam", "total_marks": "30", "obtained_marks": "26"},
+                {"assessment": "Final Project", "total_marks": "40", "obtained_marks": "37"}
+            ],
+            "summary": {
+                "Total Marks": "130",
+                "Obtained Marks": "117",
+                "Percentage": "90.0%",
+                "Letter Grade": "A"
+            }
+        })
         
     session = session_data["session"]
     try:
@@ -311,6 +399,50 @@ def api_timetable():
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
         
+    if session_data.get("is_demo"):
+        return jsonify([
+            {
+                "day": "Monday",
+                "start_time": "08:30 AM",
+                "end_time": "10:00 AM",
+                "course_name": "Web Application Development",
+                "room": "Lab 3, IT Block",
+                "teacher": "Dr. Sarah Khan"
+            },
+            {
+                "day": "Monday",
+                "start_time": "10:00 AM",
+                "end_time": "11:30 AM",
+                "course_name": "Database Systems",
+                "room": "Room 201, SCIT",
+                "teacher": "Sir Asif Bilal"
+            },
+            {
+                "day": "Wednesday",
+                "start_time": "08:30 AM",
+                "end_time": "10:00 AM",
+                "course_name": "Web Application Development",
+                "room": "Lab 3, IT Block",
+                "teacher": "Dr. Sarah Khan"
+            },
+            {
+                "day": "Wednesday",
+                "start_time": "10:00 AM",
+                "end_time": "11:30 AM",
+                "course_name": "Database Systems",
+                "room": "Room 201, SCIT",
+                "teacher": "Sir Asif Bilal"
+            },
+            {
+                "day": "Thursday",
+                "start_time": "11:30 AM",
+                "end_time": "01:00 PM",
+                "course_name": "Artificial Intelligence",
+                "room": "Seminar Hall, SCIT",
+                "teacher": "Dr. Tariq Mahmood"
+            }
+        ])
+        
     session = session_data["session"]
     user_info = session_data["user"]
     api_token = user_info.get("api_token")
@@ -340,6 +472,30 @@ def api_ledger():
     session_data = get_session_data(token)
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
+        
+    if session_data.get("is_demo"):
+        return jsonify([
+            {
+                "year": "2026",
+                "session": "Spring 2026",
+                "due_date": "2026-02-15",
+                "challan_no": "CH-992811",
+                "payable": "185000",
+                "paid_date": "2026-02-12",
+                "paid_amount": "185000",
+                "status": "PAID"
+            },
+            {
+                "year": "2025",
+                "session": "Fall 2025",
+                "due_date": "2025-09-15",
+                "challan_no": "CH-881722",
+                "payable": "175000",
+                "paid_date": "2025-09-14",
+                "paid_amount": "175000",
+                "status": "PAID"
+            }
+        ])
         
     user_info = session_data["user"]
     api_token = user_info.get("api_token")
@@ -433,6 +589,18 @@ def api_library_bookings():
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
         
+    if session_data.get("is_demo"):
+        return jsonify([
+            {
+                "id": "1",
+                "room": "Study Room 1",
+                "date": "2026-07-20",
+                "time": "14:00 - 16:00",
+                "approved": "APPROVED",
+                "remarks": "Demo Booking"
+            }
+        ])
+        
     session = session_data["session"]
     try:
         res = session.get("https://student.bnu.edu.pk/library/room-allocation-list")
@@ -467,6 +635,9 @@ def api_library_check():
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
         
+    if session_data.get("is_demo"):
+        return jsonify({"status": "available", "message": "Room is available for booking"})
+        
     user_info = session_data["user"]
     api_token = user_info.get("api_token")
     
@@ -494,6 +665,9 @@ def api_library_book():
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
         
+    if session_data.get("is_demo"):
+        return jsonify({"success": True, "message": "Room booked successfully!"})
+        
     user_info = session_data["user"]
     api_token = user_info.get("api_token")
     
@@ -520,6 +694,9 @@ def api_library_validate():
     session_data = get_session_data(token)
     if not session_data:
         return jsonify({"error": "Unauthorized"}), 401
+        
+    if session_data.get("is_demo"):
+        return jsonify({"success": True, "name": "Demo Student"})
         
     user_info = session_data["user"]
     api_token = user_info.get("api_token")
