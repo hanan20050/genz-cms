@@ -1,7 +1,6 @@
-from flask import Flask, jsonify, request, render_template, send_from_directory, redirect, session as flask_session
-import requests
-from bs4 import BeautifulSoup
-import uuid
+from flask import Flask, jsonify, request, render_template, send_from_directory, redirect, session as flask_session, render_template_string
+import time
+from datetime import datetime
 import os
 
 app = Flask(__name__)
@@ -9,6 +8,347 @@ app.secret_key = os.urandom(24)
 
 # Session store: session_token -> requests.Session & User Info
 SESSIONS = {}
+
+STATS = {
+    "total_visitors": 0,
+    "successful_logins": 0,
+    "failed_logins": 0,
+    "fetch_times": [],
+    "login_history": []
+}
+
+@app.before_request
+def start_timer():
+    request.start_time = time.time()
+
+@app.after_request
+def log_stats(response):
+    if request.path == "/":
+        STATS["total_visitors"] += 1
+        
+    if request.path == "/api/login" and request.method == "POST":
+        try:
+            res_json = response.get_json() or {}
+            req_json = request.get_json() or {}
+            username = req_json.get("username", "Unknown")
+            
+            if response.status_code == 200 and res_json.get("success"):
+                STATS["successful_logins"] += 1
+                STATS["login_history"].append({
+                    "username": username,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "SUCCESS",
+                    "error": ""
+                })
+            else:
+                STATS["failed_logins"] += 1
+                error_msg = res_json.get("error") or f"HTTP {response.status_code}"
+                STATS["login_history"].append({
+                    "username": username,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "REJECTED",
+                    "error": error_msg
+                })
+                
+            if len(STATS["login_history"]) > 100:
+                STATS["login_history"].pop(0)
+        except Exception:
+            pass
+            
+    if request.path.startswith("/api/") and not request.path.startswith("/api/login") and not request.path.startswith("/api/logout"):
+        if hasattr(request, "start_time"):
+            duration = time.time() - request.start_time
+            STATS["fetch_times"].append(duration)
+            if len(STATS["fetch_times"]) > 1000:
+                STATS["fetch_times"].pop(0)
+                
+    return response
+
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stats Authentication</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #09090b;
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: rgba(18, 18, 24, 0.85);
+            border: 2px solid #ff2e93;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        h2 {
+            color: #00e5ff;
+            margin-bottom: 20px;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input[type="password"]:focus {
+            border-color: #ffeb3b;
+            outline: none;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #ff2e93, #00e5ff);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .error {
+            color: #ff2e93;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>System Stats Login</h2>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter Password" required>
+            <button type="submit">Authenticate</button>
+        </form>
+    </div>
+</body>
+</html>
+"""
+
+STATS_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNU CMS Gateway Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #09090b;
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #ff2e93;
+            padding-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 32px;
+            color: #00e5ff;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: rgba(18, 18, 24, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+        }
+        .card.visitors { border-color: #ffeb3b; }
+        .card.successes { border-color: #00ff66; }
+        .card.failures { border-color: #ff2e93; }
+        .card.loadtime { border-color: #00e5ff; }
+        
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            color: #9ba3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .card .number {
+            font-size: 36px;
+            font-weight: 800;
+            margin: 0;
+        }
+        .card.visitors .number { color: #ffeb3b; }
+        .card.successes .number { color: #00ff66; }
+        .card.failures .number { color: #ff2e93; }
+        .card.loadtime .number { color: #00e5ff; }
+
+        .table-card {
+            background: rgba(18, 18, 24, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            overflow-x: auto;
+        }
+        .table-card h2 {
+            margin-top: 0;
+            color: #ff2e93;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        th {
+            color: #ffeb3b;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.success {
+            background: rgba(0, 255, 102, 0.15);
+            color: #00ff66;
+            border: 1px solid rgba(0, 255, 102, 0.3);
+        }
+        .status-badge.rejected {
+            background: rgba(255, 46, 147, 0.15);
+            color: #ff2e93;
+            border: 1px solid rgba(255, 46, 147, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fa-solid fa-chart-line"></i> BNU CMS Gateway Stats</h1>
+            <a href="/" style="color: #00e5ff; text-decoration: none; font-weight: 500;"><i class="fa-solid fa-arrow-left"></i> Back to Portal</a>
+        </header>
+        
+        <div class="grid">
+            <div class="card visitors">
+                <h3>Total Visitors</h3>
+                <p class="number">{{ stats.total_visitors }}</p>
+            </div>
+            <div class="card successes">
+                <h3>Successful Logins</h3>
+                <p class="number">{{ stats.successful_logins }}</p>
+            </div>
+            <div class="card failures">
+                <h3>Rejected Logins</h3>
+                <p class="number">{{ stats.failed_logins }}</p>
+            </div>
+            <div class="card loadtime">
+                <h3>Avg Fetch Time</h3>
+                <p class="number">{{ avg_fetch_time }}s</p>
+            </div>
+        </div>
+        
+        <div class="table-card">
+            <h2>Recent Login Details</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username / Roll No.</th>
+                        <th>Timestamp</th>
+                        <th>Status</th>
+                        <th>Details / Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in history %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ log.username }}</td>
+                        <td>{{ log.timestamp }}</td>
+                        <td>
+                            {% if log.status == 'SUCCESS' %}
+                            <span class="status-badge success">SUCCESS</span>
+                            {% else %}
+                            <span class="status-badge rejected">REJECTED</span>
+                            {% endif %}
+                        </td>
+                        <td style="color: #9ba3af; font-size: 14px;">{{ log.error if log.error else 'N/A' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #9ba3af;">No login events recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+@app.route("/stats", methods=["GET", "POST"])
+def stats_page():
+    password_env = os.environ.get("STATS_PASSWORD", "Hanan@1123")
+    
+    if request.method == "POST":
+        input_pass = request.form.get("password")
+        if input_pass == password_env:
+            flask_session["stats_authed"] = True
+            return redirect("/stats")
+        else:
+            return render_template_string(LOGIN_HTML, error="Invalid Password")
+            
+    if not flask_session.get("stats_authed"):
+        return render_template_string(LOGIN_HTML)
+        
+    times = STATS["fetch_times"]
+    avg_fetch_time = round(sum(times) / len(times), 3) if times else 0.0
+    
+    return render_template_string(STATS_HTML, 
+                                 stats=STATS, 
+                                 avg_fetch_time=avg_fetch_time, 
+                                 history=list(reversed(STATS["login_history"])))
 
 def get_session_data(token):
     return SESSIONS.get(token)

@@ -10,3 +10,5 @@ services:
         value: 10000
       - key: PYTHON_VERSION
         value: 3.10.0
+      - key: STATS_PASSWORD
+        value: Hanan@1123
